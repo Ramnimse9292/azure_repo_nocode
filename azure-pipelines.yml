@@ -1,0 +1,62 @@
+trigger:
+  branches:
+    include:
+      - main  # Trigger the pipeline when changes are pushed to the 'main' branch
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  # Terraform Cloud API Token (store this in Azure DevOps Pipeline Secrets)
+  TF_API_TOKEN: $(6louW0N1GqbOig.atlasv1.6BOuU3ikyOzOVGm4s6pzszksXkiLWSBl1R7PKhodemzMiLzzPsRz7z52zHj8wKl1HRc)
+  # Terraform Cloud Workspace Name
+  TF_WORKSPACE: 'aws-ec2-deployment'  # Replace with your Terraform Cloud workspace
+  # Terraform Cloud Organization Name
+  TF_ORG: 'Terraform_Demo_office'    # Replace with your Terraform Cloud organization
+  # AWS Access Credentials (store these in Azure DevOps Pipeline Secrets)
+  AWS_ACCESS_KEY_ID: $(AKIA2YY2O2QUR4DYV7NF)  # Store securely as a pipeline secret
+  AWS_SECRET_ACCESS_KEY: $(YruJ2cN/dsqm2S6+bIuZvgBEdg7gos2GX9PfbN9n)  # Store securely as a pipeline secret
+  AWS_REGION: 'us-east-1'  # Replace with your AWS region
+
+jobs:
+  - job: TriggerTerraformCloudRun
+    displayName: 'Trigger Terraform Cloud Run'
+    steps:
+      # Step 1: Install Terraform CLI
+      - task: UseTerraformInstaller@0
+        inputs:
+          version: 'latest'
+
+      # Step 2: Set up AWS credentials for Terraform
+      - script: |
+          echo "Setting up AWS CLI"
+          aws configure set aws_access_key_id $(AWS_ACCESS_KEY_ID)
+          aws configure set aws_secret_access_key $(AWS_SECRET_ACCESS_KEY)
+          aws configure set region $(AWS_REGION)
+        displayName: 'Configure AWS CLI'
+
+      # Step 3: Trigger Terraform Cloud Run via API
+      - script: |
+          echo "Triggering Terraform Cloud run..."
+          curl -X POST \
+            -H "Authorization: Bearer $(TF_API_TOKEN)" \
+            -H "Content-Type: application/json" \
+            -d '{
+                  "data": {
+                    "attributes": {
+                      "message": "Triggered from Azure DevOps for EC2 deployment",
+                      "is-destroy": false
+                    },
+                    "type": "runs",
+                    "relationships": {
+                      "workspace": {
+                        "data": {
+                          "id": "$(TF_WORKSPACE)",
+                          "type": "workspaces"
+                        }
+                      }
+                    }
+                  }
+                }' \
+            https://app.terraform.io/api/v2/runs
+        displayName: 'API Trigger Run for EC2 Instance'
